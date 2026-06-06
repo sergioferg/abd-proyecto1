@@ -22,10 +22,13 @@ def main() -> None:
         f"UId={args.user}",
         f"Pwd={args.pw}",
     ]
+
+    if "18" in args.driver:
+        connection.append("Encrypt=yes")
+        connection.append("TrustServerCertificate=yes")
     
     connection_string = ";".join(connection) + ";"
     
-
     try: 
         conn = pyodbc.connect(connection_string)
         print("Conexión exitosa!")
