@@ -40,9 +40,24 @@ def main() -> None:
 # Ejemplo de consulta
 def requisito1(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
-    query1 = "SELECT TABLE_NAME AS 'Nombre' FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'streaming' AND TABLE_TYPE = 'BASE TABLE';"
+    query1 = """
+        SELECT TABLE_NAME AS 'Nombre' 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_SCHEMA = 'streaming' 
+        AND TABLE_TYPE = 'BASE TABLE';
+    """
 
-    query2 = "WITH object_id_cte AS ( SELECT OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME) AS 'id', TABLE_NAME AS 'Nombre' FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'streaming' AND TABLE_TYPE = 'BASE TABLE' ) SELECT si.name FROM sys.indexes si JOIN object_id_cte oi ON (si.object_id = oi.id) ORDER BY oi.Nombre;"
+    query2 = """
+        WITH object_id_cte AS ( 
+            SELECT OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME) AS 'id', TABLE_NAME AS 'Nombre' 
+            FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = 'streaming' 
+            AND TABLE_TYPE = 'BASE TABLE' 
+        ) 
+        SELECT si.name 
+        FROM sys.indexes si 
+        JOIN object_id_cte oi ON (si.object_id = oi.id) 
+    """
 
     cursor.execute(query1)
 
