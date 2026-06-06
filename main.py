@@ -1,5 +1,4 @@
 import argparse
-import sys
 import pyodbc
 
 def main() -> None:
@@ -33,10 +32,43 @@ def main() -> None:
         conn = pyodbc.connect(connection_string)
         print("Conexión exitosa!")
         print(connection_string)
+        requisito1(conn)
         conn.close()
     except Exception as e:
         print(f"Error: {e}")
 
+# Ejemplo de consulta
+def requisito1(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+    query1 = "SELECT TABLE_NAME AS 'Nombre' FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'streaming' AND TABLE_TYPE = 'BASE TABLE';"
+
+    query2 = "WITH object_id_cte AS ( SELECT OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME) AS 'id', TABLE_NAME AS 'Nombre' FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'streaming' AND TABLE_TYPE = 'BASE TABLE' ) SELECT si.name FROM sys.indexes si JOIN object_id_cte oi ON (si.object_id = oi.id) ORDER BY oi.Nombre;"
+
+    cursor.execute(query1)
+
+    rows = cursor.fetchall()
+
+    print("Nombre de Tablas:")
+    for row in rows:
+        print(str(row).lstrip("('").rstrip("',)"))
+
+    # Otra manera de hacerlo (no se entiende pero se puede)
+    # print("Nombre de Tablas:")
+    # print("\n".join(["\n".join([str(val) for val in row]) for row in rows]))
+
+    print("")
+
+    cursor.execute(query2)
+    rows = cursor.fetchall()
+
+    print("Nombre de Indices:")
+    for row in rows:
+        print(str(row).lstrip("('").rstrip("',)"))
+
+
+
+
+    
     
 
 if __name__ == "__main__":
