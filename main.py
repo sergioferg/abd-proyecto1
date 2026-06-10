@@ -35,6 +35,7 @@ def main() -> None:
         #requisito1(conn)
         #requisito4(conn)
         #requisito7(conn)
+        #requisito10(conn, "serie", "nombre_serie")
         conn.close()
         
     except Exception as e:
@@ -56,8 +57,10 @@ def requisito1(conn: pyodbc.Connection) -> None:
     query2 = """
         SELECT i.name AS 'nombre'
         FROM sys.tables t
-        JOIN sys.indexes i ON t.object_id = i.object_id
-        JOIN sys.schemas s ON t.schema_id = s.schema_id
+        JOIN sys.indexes i 
+            ON t.object_id = i.object_id
+        JOIN sys.schemas s 
+            ON t.schema_id = s.schema_id
         WHERE s.name = 'streaming'
     """
 
@@ -68,10 +71,6 @@ def requisito1(conn: pyodbc.Connection) -> None:
     print("Nombre de Tablas:")
     for row in rows:
         print(row.nombre)
-
-    # Otra manera de hacerlo (no se entiende pero se puede)
-    # print("Nombre de Tablas:")
-    # print("\n".join(["\n".join([str(val) for val in row]) for row in rows]))
 
     print("")
 
@@ -185,8 +184,10 @@ def requisito7(conn: pyodbc.Connection) -> None:
             c.name AS columna, 
             c.max_length AS tam
         FROM sys.tables t
-        JOIN sys.schemas s ON t.schema_id = s.schema_id
-        JOIN sys.columns c ON t.object_id = c.object_id
+        JOIN sys.schemas s 
+            ON t.schema_id = s.schema_id
+        JOIN sys.columns c 
+            ON t.object_id = c.object_id
         WHERE s.name = 'streaming'
         ORDER BY t.name;
     """
@@ -207,6 +208,48 @@ def requisito7(conn: pyodbc.Connection) -> None:
 # 10. Dada una consulta de igualdad sobre un campo de una tabla,
 # indicar si existe un índice que pueda ser utilizado y estimar el
 # costo en cantidad de accesos a disco y en tiempo.
+
+def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
+    cursor = conn.cursor()
+
+    # Estimación teórica de tiempo asumiendo 10ms (0.01s) por lectura física en un disco mecánico tradicional.
+    query = f"""
+        DECLARE @NombreTabla NVARCHAR(128) = '{tabla}';
+        DECLARE @NombreColumna NVARCHAR(128) = '{columna}';
+
+        SELECT 
+            i.name AS indice,
+            i.type_desc AS tipo,
+            ps.index_depth AS profundidad, 
+            ps.page_count AS total_paginas,
+            CAST((ps.index_depth * 0.01) AS DECIMAL(10,4)) AS tiempo_estimado
+        FROM sys.indexes i
+        JOIN sys.tables t ON i.object_id = t.object_id
+        JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        CROSS APPLY sys.dm_db_index_physical_stats(DB_ID(), t.object_id, i.index_id, NULL, 'LIMITED') ps
+        WHERE t.name = @NombreTabla
+        AND c.name = @NombreColumna
+        AND ic.index_column_id = 1 -- Condición clave: la columna debe ser la primera del índice para ser usada directamente
+        ORDER BY ps.index_depth ASC;
+    """
+
+    cursor.execute(query)
+
+    rows = cursor.fetchall()
+
+    if not rows:
+        print(f"No existe indice para la columna {columna} en la tabla {tabla}")
+        return
+    
+    for row in rows:
+        indice = row.indice
+        tipo = row.tipo
+        profundidad = row.profundidad
+        total_paginas = row.total_paginas
+        tiempo_estimado = row.tiempo_estimado
+
+        print(indice, tipo, profundidad, total_paginas, tiempo_estimado)
 
 def tipo_format(tipo: str) -> str:
     mapeo_tipos = {
