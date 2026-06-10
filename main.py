@@ -34,7 +34,7 @@ def main() -> None:
         print(connection_string)
         #requisito1(conn)
         #requisito4(conn)
-        requisito7(conn)
+        #requisito7(conn)
         conn.close()
         
     except Exception as e:
@@ -47,14 +47,14 @@ def requisito1(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
 
     query1 = """
-        SELECT TABLE_NAME AS 'Nombre' 
+        SELECT TABLE_NAME AS 'nombre' 
         FROM INFORMATION_SCHEMA.TABLES 
         WHERE TABLE_SCHEMA = 'streaming' 
         AND TABLE_TYPE = 'BASE TABLE';
     """
 
     query2 = """
-        SELECT i.name AS 'Nombre'
+        SELECT i.name AS 'nombre'
         FROM sys.tables t
         JOIN sys.indexes i ON t.object_id = i.object_id
         JOIN sys.schemas s ON t.schema_id = s.schema_id
@@ -67,7 +67,7 @@ def requisito1(conn: pyodbc.Connection) -> None:
 
     print("Nombre de Tablas:")
     for row in rows:
-        print(format(str(row)))
+        print(row.nombre)
 
     # Otra manera de hacerlo (no se entiende pero se puede)
     # print("Nombre de Tablas:")
@@ -80,7 +80,7 @@ def requisito1(conn: pyodbc.Connection) -> None:
 
     print("Nombre de Indices:")
     for row in rows:
-        print(format(str(row)))
+        print(row.nombre)
 
 # 4. Para cada índice creado en el esquema, listar las columnas que lo
 # conforman, indicar si es único o no, y mostrar información
@@ -90,52 +90,52 @@ def requisito4(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
 
     query = """
-        SELECT t.name, i.name, c.name, i.is_unique, i.type_desc
+        SELECT 
+            t.name AS tabla, 
+            i.name AS indice, 
+            c.name AS columna, 
+            i.is_unique, 
+            i.type_desc AS tipo,
+            ps.avg_fragmentation_in_percent AS fragmentacion
         FROM sys.indexes i
-        JOIN sys.tables t ON i.object_id = t.object_id
-        JOIN sys.schemas s ON t.schema_id = s.schema_id
-        JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-        JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        JOIN sys.tables t 
+            ON i.object_id = t.object_id
+        JOIN sys.schemas s 
+            ON t.schema_id = s.schema_id
+        JOIN sys.index_columns ic 
+            ON i.object_id = ic.object_id 
+            AND i.index_id = ic.index_id
+        JOIN sys.columns c 
+            ON ic.object_id = c.object_id 
+            AND ic.column_id = c.column_id
+        CROSS APPLY sys.dm_db_index_physical_stats(DB_ID(), t.object_id, i.index_id, NULL, 'LIMITED') ps
         WHERE s.name = 'streaming'
-        ORDER BY t.name, i.name;
+        ORDER BY t.name, i.name, ic.index_column_id;
     """
 
     cursor.execute(query)
-
     rows = cursor.fetchall()
 
-    dictex ={
-        'nombre_tabla': {
-            'nombre_indice': {
-                'columnas': ["nombrecolumna"],
-                'unico': True,
-                'es_pk': False,
-                'fill_factor': 0,
-                'tipo_indice': 'agrupado',
-
-            },
-        },
-    }
-
-    dictrow ={}
+    dictrow = {}
 
     for row in rows:
-        tabla, indice, columna, es_unico, tipo = list(map(format, str(row).split(" ")))
+        tabla = row.tabla
+        indice = row.indice
+        columna = row.columna
+        es_unico = row.is_unique
+        tipo = row.tipo
+        fragmentacion = row.fragmentacion
 
         if tabla not in dictrow:
             dictrow[tabla] = {}
             
         if indice not in dictrow[tabla]:
-            dictrow[tabla][indice] = {}
-            
-        if "columnas" not in dictrow[tabla][indice]:
-            dictrow[tabla][indice]["columnas"] = []
-
-        if "es_unico" not in dictrow[tabla][indice]:
-            dictrow[tabla][indice]["es_unico"] = bool(es_unico)
-
-        if "tipo" not in dictrow[tabla][indice]:
-            dictrow[tabla][indice]["tipo"] = tipo_format(tipo)
+            dictrow[tabla][indice] = {
+                "columnas": [],
+                "es_unico": bool(es_unico),
+                "tipo": tipo_format(tipo),
+                "fragmentacion_porcentaje": round(float(fragmentacion), 2) if fragmentacion is not None else 0.0
+            }
         
         dictrow[tabla][indice]["columnas"].append(columna)
     
@@ -180,7 +180,10 @@ def requisito7(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
 
     query = """
-        SELECT t.name, c.name, c.max_length
+        SELECT 
+            t.name AS tabla, 
+            c.name AS columna, 
+            c.max_length AS tam
         FROM sys.tables t
         JOIN sys.schemas s ON t.schema_id = s.schema_id
         JOIN sys.columns c ON t.object_id = c.object_id
@@ -194,7 +197,10 @@ def requisito7(conn: pyodbc.Connection) -> None:
 
 
     for row in rows:
-        tabla, columna, tam = list(map(format, str(row).split(" ")))
+        tabla = row.tabla
+        columna = row.columna
+        tam = row.tam
+        
         print(tabla, columna, tam)
         
 
