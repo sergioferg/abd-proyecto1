@@ -33,8 +33,11 @@ def main() -> None:
         print("Conexión exitosa!")
         print(connection_string)
         #requisito1(conn)
+        #requisito2(conn)
         #requisito4(conn)
+        #requisito5(conn)
         #requisito7(conn)
+        #requisito8(conn)
         #requisito10(conn, "serie", "nombre_serie")
         conn.close()
         
@@ -80,6 +83,45 @@ def requisito1(conn: pyodbc.Connection) -> None:
     print("Nombre de Indices:")
     for row in rows:
         print(row.nombre)
+
+# 2. Indicar la cantidad total de tablas y la cantidad de índices
+# definidos por cada tabla.
+
+def requisito2(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query1 = """
+        SELECT COUNT(*) AS total_tablas
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = 'streaming'
+        AND TABLE_TYPE = 'BASE TABLE';
+    """
+    cursor.execute(query1)
+    row = cursor.fetchone()
+    print("Cantidad total de tablas:", row.total_tablas)
+
+    print("")
+
+    query2 = """
+        SELECT t.name AS tabla, COUNT(*) AS cantidad_indices
+        FROM sys.indexes i
+        JOIN sys.tables t
+            ON i.object_id = t.object_id
+        JOIN sys.schemas s
+            ON t.schema_id = s.schema_id
+        WHERE s.name = 'streaming'
+        AND i.name IS NOT NULL
+        GROUP BY t.name
+        ORDER BY t.name;
+    """
+    cursor.execute(query2)
+    rows = cursor.fetchall()
+
+    print("Cantidad de indices por tabla:")
+    for row in rows:
+        print(f" - {row.tabla}: {row.cantidad_indices}")
+
+    cursor.close()
 
 # 4. Para cada índice creado en el esquema, listar las columnas que lo
 # conforman, indicar si es único o no, y mostrar información
@@ -173,6 +215,38 @@ def requisito4(conn: pyodbc.Connection) -> None:
         print(f"{' ':<{ancho_tabla}} | {' ':<{ancho_indice}} |")
     '''
         
+# 5. Por cada trigger existente en el esquema, indicar su nombre, tipo,
+# estado y tabla que lo activa.
+
+def requisito5(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query = """
+        SELECT
+            tr.name AS trigger_nombre,
+            t.name AS tabla,
+            CASE WHEN tr.is_instead_of_trigger = 1 THEN 'INSTEAD OF' ELSE 'AFTER' END AS tipo,
+            CASE WHEN tr.is_disabled = 1 THEN 'Deshabilitado' ELSE 'Habilitado' END AS estado
+        FROM sys.triggers tr
+        JOIN sys.tables t
+            ON tr.parent_id = t.object_id
+        JOIN sys.schemas s
+            ON t.schema_id = s.schema_id
+        WHERE s.name = 'streaming'
+        ORDER BY t.name, tr.name;
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    if not rows:
+        print("No existen triggers en el esquema streaming")
+    else:
+        print("Triggers del esquema streaming:")
+        for row in rows:
+            print(f" - {row.trigger_nombre} | tabla: {row.tabla} | tipo: {row.tipo} | estado: {row.estado}")
+
+    cursor.close()
+
 # 7. Calcular o estimar el tamaño de cada registro en bytes.
 
 def requisito7(conn: pyodbc.Connection) -> None:
@@ -204,6 +278,36 @@ def requisito7(conn: pyodbc.Connection) -> None:
         
         print(tabla, columna, tam)
         
+
+# 8. Indicar el tamaño de cada columna en bytes, según su tipo de dato.
+
+def requisito8(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query = """
+        SELECT
+            t.name AS tabla,
+            c.name AS columna,
+            ty.name AS tipo_dato,
+            c.max_length AS tamano_bytes
+        FROM sys.columns c
+        JOIN sys.tables t
+            ON c.object_id = t.object_id
+        JOIN sys.schemas s
+            ON t.schema_id = s.schema_id
+        JOIN sys.types ty
+            ON c.user_type_id = ty.user_type_id
+        WHERE s.name = 'streaming'
+        ORDER BY t.name, c.column_id;
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    print("Tamaño de cada columna (en bytes):")
+    for row in rows:
+        print(f" - {row.tabla}.{row.columna} ({row.tipo_dato}): {row.tamano_bytes}")
+
+    cursor.close()
 
 # 10. Dada una consulta de igualdad sobre un campo de una tabla,
 # indicar si existe un índice que pueda ser utilizado y estimar el
