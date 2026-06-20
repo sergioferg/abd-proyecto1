@@ -52,7 +52,7 @@ class Aplicacion:
         self.conn = conn
         self.ventana = ventana
         self.ventana.title("StreamUCV - Diccionario de Datos")
-        self.ventana.geometry("950x600")
+        self.ventana.geometry("1366x768")
 
         # ----- Panel izquierdo: botones -----
         panel_botones = tk.Frame(ventana, padx=10, pady=10)

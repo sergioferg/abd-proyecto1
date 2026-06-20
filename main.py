@@ -360,7 +360,6 @@ def requisito7(conn: pyodbc.Connection) -> None:
             if tabla != current_table:
                 # Nueva tabla: imprimir título y encabezado
                 print(f"\n{tabla}:\n")
-                print(f"{ 'Columna':<{col_w}} | { 'bytes':>{bytes_w}}")
                 current_table = tabla
 
             print(f"{columna:<{col_w}} | {tam:>{bytes_w}} bytes")
@@ -506,7 +505,7 @@ def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
         ORDER BY ps.index_depth ASC;
     """
 
-    rows = safe_execute(cursor, query, f"buscar índices para {tabla}.{columna}")
+    rows = safe_execute(cursor, query, f"buscar índices para la tabla  {tabla} en la columna {columna}")
     if rows is None:
         cursor.close()
         return
@@ -537,9 +536,9 @@ def tipo_format(tipo: str) -> str:
 
 def print_header(numero: int, titulo: str) -> None:
     """Imprime un encabezado consistente para cada requisito."""
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 80)
     print(f"Requisito {numero}: {titulo}")
-    print("=" * 60)
+    print("=" * 80)
 
 
 def format(row: str) -> str:
