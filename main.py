@@ -123,6 +123,29 @@ def requisito2(conn: pyodbc.Connection) -> None:
 
     cursor.close()
 
+def requisito3(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            CONSTRAINT_NAME AS Nombre_Restriccion,
+            TABLE_NAME AS Tabla_Asociada,
+            CONSTRAINT_TYPE AS Tipo_Restriccion
+        FROM 
+            INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+        WHERE 
+            TABLE_SCHEMA = 'streaming'
+        ORDER BY 
+            TABLE_NAME, CONSTRAINT_TYPE;
+    """
+
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    print("Restricciones encontradas en el esquema 'streaming':\n")
+    for row in rows:
+        print(f"- {row.Tabla_Asociada}: {row.Tipo_Restriccion}-'{row.Nombre_Restriccion}'")
+    
+
 # 4. Para cada índice creado en el esquema, listar las columnas que lo
 # conforman, indicar si es único o no, y mostrar información
 # relevante del índice disponible en el Diccionario de Datos de SQL Server.
@@ -247,6 +270,42 @@ def requisito5(conn: pyodbc.Connection) -> None:
 
     cursor.close()
 
+def requisito6(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            t.name AS tabla,
+            SUM(a.total_pages) AS total_paginas,
+            SUM(a.total_pages) * 8 AS tamano_kb
+        FROM 
+            sys.tables t
+        JOIN 
+            sys.schemas s ON t.schema_id = s.schema_id
+        JOIN 
+            sys.indexes i ON t.object_id = i.object_id
+        JOIN 
+            sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
+        JOIN 
+            sys.allocation_units a ON p.partition_id = a.container_id
+        WHERE 
+            s.name = 'streaming'
+        GROUP BY 
+            t.name
+        ORDER BY 
+            tamano_kb DESC;
+    """
+
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    print("Tamaño físico estimado de las tablas:\n")
+    
+    for row in rows:
+        print(f"- {row.tabla}: {row.total_paginas} bloques ocupando un total de {row.tamano_kb} KB en disco")
+    
+    
+
 # 7. Calcular o estimar el tamaño de cada registro en bytes.
 
 def requisito7(conn: pyodbc.Connection) -> None:
@@ -308,6 +367,58 @@ def requisito8(conn: pyodbc.Connection) -> None:
         print(f" - {row.tabla}.{row.columna} ({row.tipo_dato}): {row.tamano_bytes}")
 
     cursor.close()
+
+def requisito9(conn: pyodbc.Connection) -> None:
+    cursor = conn.cursor()
+
+    query = """
+        SELECT 
+            t.name AS Nombre_Objeto,
+            'Tabla' AS Tipo_Objeto,
+            SUM(c.max_length) AS Tamano_Registro_Bytes,
+            8192 / SUM(c.max_length) AS Factor_Bloqueo
+        FROM 
+            sys.tables t
+        JOIN 
+            sys.columns c ON t.object_id = c.object_id
+        WHERE 
+            t.schema_id = SCHEMA_ID('streaming')
+        GROUP BY 
+            t.name
+
+        UNION ALL
+
+        SELECT 
+            i.name AS Nombre_Objeto,
+            'Índice' AS Tipo_Objeto,
+            SUM(c.max_length) AS Tamano_Registro_Bytes,
+            8192 / SUM(c.max_length) AS Factor_Bloqueo
+        FROM 
+            sys.indexes i
+        JOIN 
+            sys.tables t ON i.object_id = t.object_id
+        JOIN 
+            sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        JOIN 
+            sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE 
+            t.schema_id = SCHEMA_ID('streaming')
+            AND i.type > 0 
+        GROUP BY 
+            i.name
+            
+        ORDER BY 
+            Tipo_Objeto DESC, Nombre_Objeto;
+    """
+
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    print("Factor de bloqueo (páginas de 8 KB):\n")
+    
+    for row in rows:
+        tipo = row.Tipo_Objeto.lower() # Para que diga "la tabla" o "el índice"
+        print(f"- {tipo} '{row.Nombre_Objeto}': El registro pesa {row.Tamano_Registro_Bytes} B. {row.Factor_Bloqueo} registros por página")
 
 # 10. Dada una consulta de igualdad sobre un campo de una tabla,
 # indicar si existe un índice que pueda ser utilizado y estimar el
