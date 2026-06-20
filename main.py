@@ -3,10 +3,6 @@ import pyodbc
 
 
 def safe_execute(cursor: pyodbc.Cursor, query: str, descripcion: str = "consulta", fetchone: bool = False):
-    """Ejecuta una consulta y captura errores, devolviendo filas o None.
-
-    Imprime mensajes de error en español si falla.
-    """
     try:
         cursor.execute(query)
         return cursor.fetchone() if fetchone else cursor.fetchall()
@@ -40,22 +36,6 @@ def main() -> None:
         connection.append("TrustServerCertificate=yes")
     
     connection_string = ";".join(connection) + ";"
-    
-    try: 
-        conn = pyodbc.connect(connection_string)
-        print("Conexión exitosa!")
-        print(connection_string)
-        #requisito1(conn)
-        #requisito2(conn)
-        #requisito4(conn)
-        #requisito5(conn)
-        #requisito7(conn)
-        #requisito8(conn)
-        #requisito10(conn, "serie", "nombre_serie")
-        conn.close()
-        
-    except Exception as e:
-        print(f"Error: {e}")
 
 # 1. Listar el nombre de las tablas e índices existentes en el esquema
 # streaming.
@@ -358,7 +338,6 @@ def requisito7(conn: pyodbc.Connection) -> None:
             tam = row.tam
 
             if tabla != current_table:
-                # Nueva tabla: imprimir título y encabezado
                 print(f"\n{tabla}:\n")
                 current_table = tabla
 
@@ -408,7 +387,6 @@ def requisito8(conn: pyodbc.Connection) -> None:
             tam = row.tamano_bytes
 
             if tabla != current_table:
-                # Nueva tabla: imprimir título y encabezado
                 print(f"\n{tabla}:\n")
                 print(f"{ 'Columna':<{col_w}} | { 'tipo':<{type_w}} | { 'bytes':>{bytes_w}}")
                 current_table = tabla
