@@ -127,8 +127,8 @@ class Aplicacion:
         self.ejecutar(main.requisito2, self.conn)
 
     def req3(self):
-        self.mostrar("Requerimiento pendiente")   
-
+       self.ejecutar(main.requisito3, self.conn)  
+  
     def req4(self):
         self.ejecutar(main.requisito4, self.conn)
 
@@ -136,7 +136,7 @@ class Aplicacion:
         self.ejecutar(main.requisito5, self.conn)
 
     def req6(self):
-        self.mostrar("Requerimiento pendiente")   
+        self.ejecutar(main.requisito6, self.conn)     
 
     def req7(self):
         self.ejecutar(main.requisito7, self.conn)
@@ -145,7 +145,8 @@ class Aplicacion:
         self.ejecutar(main.requisito8, self.conn)
 
     def req9(self):
-        self.mostrar("Requerimiento pendiente")   
+        self.ejecutar(main.requisito9, self.conn)  
+   
 
     def req10(self):
         tabla = self.entrada_tabla.get()
