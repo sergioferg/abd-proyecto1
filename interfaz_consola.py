@@ -59,19 +59,19 @@ def ejecutar_opcion(opcion, conn):
     elif opcion == "2":
         main.requisito2(conn)
     elif opcion == "3":
-        print("Requerimiento pendiente")  
+        main.requisito3(conn) 
     elif opcion == "4":
         main.requisito4(conn)
     elif opcion == "5":
         main.requisito5(conn)
     elif opcion == "6":
-        print("Requerimiento pendiente")   
+        main.requisito6(conn)
     elif opcion == "7":
         main.requisito7(conn)
     elif opcion == "8":
         main.requisito8(conn)
     elif opcion == "9":
-        print("Requerimiento pendiente")   
+        main.requisito9(conn)  
     elif opcion == "10":
         tabla = input("Nombre de la tabla: ")
         columna = input("Nombre de la columna: ")

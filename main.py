@@ -1,6 +1,19 @@
 import argparse
 import pyodbc
 
+
+def safe_execute(cursor: pyodbc.Cursor, query: str, descripcion: str = "consulta", fetchone: bool = False):
+    """Ejecuta una consulta y captura errores, devolviendo filas o None.
+
+    Imprime mensajes de error en español si falla.
+    """
+    try:
+        cursor.execute(query)
+        return cursor.fetchone() if fetchone else cursor.fetchall()
+    except Exception as e:
+        print(f"Error al ejecutar la {descripcion}: {e}")
+        return None
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="StreamUCV D/D")
     parser.add_argument("server", type=str, help="Servidor o instancia de SQL Server")
@@ -49,6 +62,7 @@ def main() -> None:
 
 def requisito1(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(1, "Listar tablas e índices del esquema 'streaming'")
 
     query1 = """
         SELECT TABLE_NAME AS 'nombre' 
@@ -67,28 +81,33 @@ def requisito1(conn: pyodbc.Connection) -> None:
         WHERE s.name = 'streaming'
     """
 
-    cursor.execute(query1)
+    rows = safe_execute(cursor, query1, "listar tablas")
+    if rows is None:
+        cursor.close()
+        return
 
-    rows = cursor.fetchall()
-
-    print("Nombre de Tablas:")
+    print("Tablas:")
     for row in rows:
-        print(row.nombre)
+        print(f" - {row.nombre}")
 
     print("")
+    rows = safe_execute(cursor, query2, "listar índices")
+    if rows is None:
+        cursor.close()
+        return
 
-    cursor.execute(query2)
-    rows = cursor.fetchall()
-
-    print("Nombre de Indices:")
+    print("Índices:")
     for row in rows:
-        print(row.nombre)
+        print(f" - {row.nombre}")
+
+    cursor.close()
 
 # 2. Indicar la cantidad total de tablas y la cantidad de índices
 # definidos por cada tabla.
 
 def requisito2(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(2, "Cantidad total de tablas y cantidad de índices por tabla")
 
     query1 = """
         SELECT COUNT(*) AS total_tablas
@@ -96,10 +115,11 @@ def requisito2(conn: pyodbc.Connection) -> None:
         WHERE TABLE_SCHEMA = 'streaming'
         AND TABLE_TYPE = 'BASE TABLE';
     """
-    cursor.execute(query1)
-    row = cursor.fetchone()
-    print("Cantidad total de tablas:", row.total_tablas)
-
+    row = safe_execute(cursor, query1, "contar tablas", fetchone=True)
+    if row is None:
+        cursor.close()
+        return
+    print(f" - Total tablas: {row.total_tablas}")
     print("")
 
     query2 = """
@@ -112,19 +132,22 @@ def requisito2(conn: pyodbc.Connection) -> None:
         WHERE s.name = 'streaming'
         AND i.name IS NOT NULL
         GROUP BY t.name
-        ORDER BY t.name;
+        ORDER BY cantidad_indices DESC;
     """
-    cursor.execute(query2)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query2, "contar índices por tabla")
+    if rows is None:
+        cursor.close()
+        return
 
-    print("Cantidad de indices por tabla:")
+    print("Índices por tabla:")
     for row in rows:
-        print(f" - {row.tabla}: {row.cantidad_indices}")
+        print(f" - {row.tabla:<20} | índices: {row.cantidad_indices:>3}")
 
     cursor.close()
 
 def requisito3(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(3, "Restricciones del esquema 'streaming'")
 
     query = """
         SELECT 
@@ -139,12 +162,18 @@ def requisito3(conn: pyodbc.Connection) -> None:
             TABLE_NAME, CONSTRAINT_TYPE;
     """
 
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    print("Restricciones encontradas en el esquema 'streaming':\n")
-    for row in rows:
-        print(f"- {row.Tabla_Asociada}: {row.Tipo_Restriccion}-'{row.Nombre_Restriccion}'")
-    
+    rows = safe_execute(cursor, query, "listar restricciones")
+    if rows is None:
+        cursor.close()
+        return
+
+    if not rows:
+        print(" - No se encontraron restricciones en el esquema 'streaming'.")
+    else:
+        for row in rows:
+            print(f" - {row.Tabla_Asociada:<20} | {row.Tipo_Restriccion:<15} | {row.Nombre_Restriccion}")
+
+    cursor.close()
 
 # 4. Para cada índice creado en el esquema, listar las columnas que lo
 # conforman, indicar si es único o no, y mostrar información
@@ -152,6 +181,7 @@ def requisito3(conn: pyodbc.Connection) -> None:
 
 def requisito4(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(4, "Columnas que conforman índices y propiedades")
 
     query = """
         SELECT 
@@ -177,8 +207,10 @@ def requisito4(conn: pyodbc.Connection) -> None:
         ORDER BY t.name, i.name, ic.index_column_id;
     """
 
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, "listar índices y columnas")
+    if rows is None:
+        cursor.close()
+        return
 
     dictrow = {}
 
@@ -203,46 +235,24 @@ def requisito4(conn: pyodbc.Connection) -> None:
         
         dictrow[tabla][indice]["columnas"].append(columna)
     
-    for key, value in dictrow.items():
-        print(key, value)
-        print("")
-    
-    #TODO
-    '''
-    ancho_tabla = 20
-    ancho_indice = 30
+    if not dictrow:
+        print(" - No se encontraron índices en el esquema 'streaming'.")
+    else:
+        for tabla, indices in dictrow.items():
+            print(f" - Tabla: {tabla}")
+            for indice, datos in indices.items():
+                columnas = ", ".join(datos["columnas"])
+                print(f"    - {indice:<30} | {datos['tipo']:<15} | Único: {str(datos['es_unico']):<8} | Frag: {datos['fragmentacion_porcentaje']:>6}% | Columnas: {columnas}")
+            print("")
 
-    print(f"{'TABLA':<{ancho_tabla}} | {'INDICE':<{ancho_indice}} | COLUMNAS")
-    print("-" * (ancho_tabla + ancho_indice + 27))
-
-    
-    
-    for tabla, indices in dictrow.items():
-        es_primera_vez_tabla = True
-        
-        for indice, datos in indices.items():
-            es_primera_vez_indice = True  
-            
-            for columna in datos["columnas"]:
-                
-                texto_tabla = tabla if es_primera_vez_tabla else ""
-                
-                texto_indice = indice if es_primera_vez_indice else ""
-                
-                
-                print(f"{texto_tabla:<{ancho_tabla}} | {texto_indice:<{ancho_indice}} | {columna}")
-                
-                
-                es_primera_vez_tabla = False
-                es_primera_vez_indice = False
-        print(f"{' ':<{ancho_tabla}} | {' ':<{ancho_indice}} |")
-    '''
+    cursor.close()
         
 # 5. Por cada trigger existente en el esquema, indicar su nombre, tipo,
 # estado y tabla que lo activa.
 
 def requisito5(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(5, "Triggers existentes en el esquema 'streaming'")
 
     query = """
         SELECT
@@ -258,20 +268,22 @@ def requisito5(conn: pyodbc.Connection) -> None:
         WHERE s.name = 'streaming'
         ORDER BY t.name, tr.name;
     """
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, "listar triggers")
+    if rows is None:
+        cursor.close()
+        return
 
     if not rows:
-        print("No existen triggers en el esquema streaming")
+        print(" - No existen triggers en el esquema 'streaming'.")
     else:
-        print("Triggers del esquema streaming:")
         for row in rows:
-            print(f" - {row.trigger_nombre} | tabla: {row.tabla} | tipo: {row.tipo} | estado: {row.estado}")
+            print(f" - Nombre: {row.trigger_nombre} | Tabla: {row.tabla} | Tipo: {row.tipo} | Estado: {row.estado}")
 
     cursor.close()
 
 def requisito6(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(6, "Tamaño físico estimado de las tablas")
 
     query = """
         SELECT 
@@ -296,20 +308,23 @@ def requisito6(conn: pyodbc.Connection) -> None:
             tamano_kb DESC;
     """
 
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, "calcular tamaño físico de tablas")
+    if rows is None:
+        cursor.close()
+        return
 
-    print("Tamaño físico estimado de las tablas:\n")
-    
-    for row in rows:
-        print(f"- {row.tabla}: {row.total_paginas} bloques ocupando un total de {row.tamano_kb} KB en disco")
-    
-    
+    if not rows:
+        print(" - No se encontraron tablas en el esquema 'streaming'.")
+    else:
+        for row in rows:
+            print(f" - {row.tabla:<30} | Páginas: {row.total_paginas:>8} | Tamaño: {row.tamano_kb:>10} KB")
 
+    cursor.close()
 # 7. Calcular o estimar el tamaño de cada registro en bytes.
 
 def requisito7(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(7, "Estimación del tamaño de cada registro por columna")
 
     query = """
         SELECT 
@@ -325,23 +340,38 @@ def requisito7(conn: pyodbc.Connection) -> None:
         ORDER BY t.name;
     """
 
-    cursor.execute(query)
+    rows = safe_execute(cursor, query, "listar tamaño por columna")
+    if rows is None:
+        cursor.close()
+        return
 
-    rows = cursor.fetchall()
+    if not rows:
+        print(" - No se encontraron columnas en el esquema 'streaming'.")
+    else:
+        col_w = 30
+        bytes_w = 6
+        current_table = None
 
+        for row in rows:
+            tabla = row.tabla
+            columna = row.columna
+            tam = row.tam
 
-    for row in rows:
-        tabla = row.tabla
-        columna = row.columna
-        tam = row.tam
-        
-        print(tabla, columna, tam)
-        
+            if tabla != current_table:
+                # Nueva tabla: imprimir título y encabezado
+                print(f"\n{tabla}:\n")
+                print(f"{ 'Columna':<{col_w}} | { 'bytes':>{bytes_w}}")
+                current_table = tabla
+
+            print(f"{columna:<{col_w}} | {tam:>{bytes_w}} bytes")
+
+    cursor.close()
 
 # 8. Indicar el tamaño de cada columna en bytes, según su tipo de dato.
 
 def requisito8(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(8, "Tamaño de cada columna según tipo de dato")
 
     query = """
         SELECT
@@ -359,17 +389,38 @@ def requisito8(conn: pyodbc.Connection) -> None:
         WHERE s.name = 'streaming'
         ORDER BY t.name, c.column_id;
     """
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, "listar tamaño por columna")
+    if rows is None:
+        cursor.close()
+        return
 
-    print("Tamaño de cada columna (en bytes):")
-    for row in rows:
-        print(f" - {row.tabla}.{row.columna} ({row.tipo_dato}): {row.tamano_bytes}")
+    if not rows:
+        print(" - No se encontraron columnas en el esquema 'streaming'.")
+    else:
+        col_w = 22
+        type_w = 12
+        bytes_w = 6
+        current_table = None
+
+        for row in rows:
+            tabla = row.tabla
+            columna = row.columna
+            tipo = row.tipo_dato
+            tam = row.tamano_bytes
+
+            if tabla != current_table:
+                # Nueva tabla: imprimir título y encabezado
+                print(f"\n{tabla}:\n")
+                print(f"{ 'Columna':<{col_w}} | { 'tipo':<{type_w}} | { 'bytes':>{bytes_w}}")
+                current_table = tabla
+
+            print(f"{columna:<{col_w}} | {tipo:<{type_w}} | {tam:>{bytes_w}}")
 
     cursor.close()
 
 def requisito9(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
+    print_header(9, "Factor de bloqueo (páginas de 8 KB)")
 
     query = """
         SELECT 
@@ -411,14 +462,19 @@ def requisito9(conn: pyodbc.Connection) -> None:
             Tipo_Objeto DESC, Nombre_Objeto;
     """
 
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, "calcular factor de bloqueo")
+    if rows is None:
+        cursor.close()
+        return
 
-    print("Factor de bloqueo (páginas de 8 KB):\n")
-    
-    for row in rows:
-        tipo = row.Tipo_Objeto.lower() # Para que diga "la tabla" o "el índice"
-        print(f"- {tipo} '{row.Nombre_Objeto}': El registro pesa {row.Tamano_Registro_Bytes} B. {row.Factor_Bloqueo} registros por página")
+    if not rows:
+        print(" - No se encontraron objetos para calcular factor de bloqueo.")
+    else:
+        for row in rows:
+            tipo = row.Tipo_Objeto.lower()
+            print(f" - {tipo:<6} | {row.Nombre_Objeto:<30} | Registro: {row.Tamano_Registro_Bytes:>10} B | Factor/página: {row.Factor_Bloqueo:>8}")
+
+    cursor.close()
 
 # 10. Dada una consulta de igualdad sobre un campo de una tabla,
 # indicar si existe un índice que pueda ser utilizado y estimar el
@@ -426,6 +482,7 @@ def requisito9(conn: pyodbc.Connection) -> None:
 
 def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
     cursor = conn.cursor()
+    print_header(10, f"Búsqueda de índice y estimación de costo para {tabla}.{columna}")
 
     # Estimación teórica de tiempo asumiendo 10ms (0.01s) por lectura física en un disco mecánico tradicional.
     query = f"""
@@ -449,12 +506,14 @@ def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
         ORDER BY ps.index_depth ASC;
     """
 
-    cursor.execute(query)
-
-    rows = cursor.fetchall()
+    rows = safe_execute(cursor, query, f"buscar índices para {tabla}.{columna}")
+    if rows is None:
+        cursor.close()
+        return
 
     if not rows:
-        print(f"No existe indice para la columna {columna} en la tabla {tabla}")
+        print(f" - No existe índice para la columna '{columna}' en la tabla '{tabla}'.")
+        cursor.close()
         return
     
     for row in rows:
@@ -462,17 +521,26 @@ def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
         tipo = row.tipo
         profundidad = row.profundidad
         total_paginas = row.total_paginas
-        tiempo_estimado = row.tiempo_estimado
+        tiempo_estimado = float(row.tiempo_estimado)
 
-        print(indice, tipo, profundidad, total_paginas, tiempo_estimado)
+        print(f" - Índice: {indice} | Tipo: {tipo} | Profundidad: {profundidad} | Páginas: {total_paginas} | Tiempo estimado: {tiempo_estimado} s")
+
+    cursor.close()
 
 def tipo_format(tipo: str) -> str:
     mapeo_tipos = {
         "CLUSTERED": "AGRUPADO",
         "NONCLUSTERED": "NO AGRUPADO"
     }
-    
     return mapeo_tipos.get(tipo, tipo)
+
+
+def print_header(numero: int, titulo: str) -> None:
+    """Imprime un encabezado consistente para cada requisito."""
+    print("\n" + "=" * 60)
+    print(f"Requisito {numero}: {titulo}")
+    print("=" * 60)
+
 
 def format(row: str) -> str:
     return row.lstrip("(").lstrip("'").rstrip(")").rstrip(",").rstrip("'")
