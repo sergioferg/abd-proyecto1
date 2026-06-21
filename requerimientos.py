@@ -481,7 +481,7 @@ def requisito10 (conn: pyodbc.Connection, tabla: str, columna: str) -> None:
             i.type_desc AS tipo,
             ps.index_depth AS profundidad, 
             ps.page_count AS total_paginas,
-            CAST((ps.index_depth * 0.01) AS DECIMAL(10,4)) AS tiempo_estimado
+            CAST(((ps.index_depth * 8.0) / (17.0 * 1024.0)) AS DECIMAL(10,5)) AS tiempo_estimado
         FROM sys.indexes i
         JOIN sys.tables t ON i.object_id = t.object_id
         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id

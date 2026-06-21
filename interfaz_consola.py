@@ -55,27 +55,27 @@ def mostrar_menu():
 
 def ejecutar_opcion(opcion, conn):
     if opcion == "1":
-        main.requisito1(conn)
+        requerimientos.requisito1(conn)
     elif opcion == "2":
-        main.requisito2(conn)
+        requerimientos.requisito2(conn)
     elif opcion == "3":
-        main.requisito3(conn) 
+        requerimientos.requisito3(conn) 
     elif opcion == "4":
-        main.requisito4(conn)
+        requerimientos.requisito4(conn)
     elif opcion == "5":
-        main.requisito5(conn)
+        requerimientos.requisito5(conn)
     elif opcion == "6":
-        main.requisito6(conn)
+        requerimientos.requisito6(conn)
     elif opcion == "7":
-        main.requisito7(conn)
+        requerimientos.requisito7(conn)
     elif opcion == "8":
-        main.requisito8(conn)
+        requerimientos.requisito8(conn)
     elif opcion == "9":
-        main.requisito9(conn)  
+        requerimientos.requisito9(conn)  
     elif opcion == "10":
         tabla = input("Nombre de la tabla: ")
         columna = input("Nombre de la columna: ")
-        main.requisito10(conn, tabla, columna)
+        requerimientos.requisito10(conn, tabla, columna)
     else:
         print("Opción no válida.")
 
