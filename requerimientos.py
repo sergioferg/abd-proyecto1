@@ -130,16 +130,52 @@ def requisito3(conn: pyodbc.Connection) -> None:
     print_header(3, "Restricciones del esquema 'streaming'")
 
     query = """
-        SELECT 
-            CONSTRAINT_NAME AS Nombre_Restriccion,
-            TABLE_NAME AS Tabla_Asociada,
-            CONSTRAINT_TYPE AS Tipo_Restriccion
-        FROM 
-            INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
-        WHERE 
-            TABLE_SCHEMA = 'streaming'
-        ORDER BY 
-            TABLE_NAME, CONSTRAINT_TYPE;
+    SELECT 
+        SCHEMA_NAME(t.schema_id) AS Esquema,
+        t.name AS Tabla,
+        kc.name AS NombreRestriccion,
+        CASE kc.type 
+            WHEN 'PK' THEN 'PRIMARY KEY' 
+            WHEN 'UQ' THEN 'UNIQUE' 
+        END AS TipoRestriccion
+    FROM sys.key_constraints kc
+    INNER JOIN sys.tables t ON kc.parent_object_id = t.object_id
+    WHERE SCHEMA_NAME(t.schema_id) = 'streaming'
+
+    UNION ALL
+
+    SELECT 
+        SCHEMA_NAME(t.schema_id) AS Esquema,
+        t.name AS Tabla,
+        fk.name AS NombreRestriccion,
+        'FOREIGN KEY' AS TipoRestriccion
+    FROM sys.foreign_keys fk
+    INNER JOIN sys.tables t ON fk.parent_object_id = t.object_id
+    WHERE SCHEMA_NAME(t.schema_id) = 'streaming'
+
+    UNION ALL
+
+    SELECT 
+        SCHEMA_NAME(t.schema_id) AS Esquema,
+        t.name AS Tabla,
+        cc.name AS NombreRestriccion,
+        'CHECK' AS TipoRestriccion
+    FROM sys.check_constraints cc
+    INNER JOIN sys.tables t ON cc.parent_object_id = t.object_id
+    WHERE SCHEMA_NAME(t.schema_id) = 'streaming'
+
+    UNION ALL
+
+    SELECT 
+        SCHEMA_NAME(t.schema_id) AS Esquema,
+        t.name AS Tabla,
+        dc.name AS NombreRestriccion,
+        'DEFAULT' AS TipoRestriccion
+    FROM sys.default_constraints dc
+    INNER JOIN sys.tables t ON dc.parent_object_id = t.object_id
+    WHERE SCHEMA_NAME(t.schema_id) = 'streaming'
+
+    ORDER BY Tabla, TipoRestriccion, NombreRestriccion;
     """
 
     rows = safe_execute(cursor, query, "listar restricciones")
@@ -151,7 +187,8 @@ def requisito3(conn: pyodbc.Connection) -> None:
         print(" - No se encontraron restricciones en el esquema 'streaming'.")
     else:
         for row in rows:
-            print(f" - {row.Tabla_Asociada:<20} | {row.Tipo_Restriccion:<15} | {row.Nombre_Restriccion}")
+            print(f" - {row.Tabla:<20} | {row.TipoRestriccion:<15} | {row.NombreRestriccion}")
+
 
     cursor.close()
 
