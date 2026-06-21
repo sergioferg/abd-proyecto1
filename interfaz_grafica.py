@@ -13,7 +13,6 @@ USERNAME = "sa"
 PASSWORD = ""
 USAR_AUTENTICACION_WINDOWS = True
 
-
 def conectar():
     if USAR_AUTENTICACION_WINDOWS:
         partes = [
@@ -121,37 +120,37 @@ class Aplicacion:
 
     # ----- Requerimientos implementados -----
     def req1(self):
-        self.ejecutar(main.requisito1, self.conn)
+        self.ejecutar(requerimientos.requisito1, self.conn)
 
     def req2(self):
-        self.ejecutar(main.requisito2, self.conn)
+        self.ejecutar(requerimientos.requisito2, self.conn)
 
     def req3(self):
-       self.ejecutar(main.requisito3, self.conn)  
+       self.ejecutar(requerimientos.requisito3, self.conn)  
   
     def req4(self):
-        self.ejecutar(main.requisito4, self.conn)
+        self.ejecutar(requerimientos.requisito4, self.conn)
 
     def req5(self):
-        self.ejecutar(main.requisito5, self.conn)
+        self.ejecutar(requerimientos.requisito5, self.conn)
 
     def req6(self):
-        self.ejecutar(main.requisito6, self.conn)     
+        self.ejecutar(requerimientos.requisito6, self.conn)     
 
     def req7(self):
-        self.ejecutar(main.requisito7, self.conn)
+        self.ejecutar(requerimientos.requisito7, self.conn)
 
     def req8(self):
-        self.ejecutar(main.requisito8, self.conn)
+        self.ejecutar(requerimientos.requisito8, self.conn)
 
     def req9(self):
-        self.ejecutar(main.requisito9, self.conn)  
+        self.ejecutar(requerimientos.requisito9, self.conn)  
    
 
     def req10(self):
         tabla = self.entrada_tabla.get()
         columna = self.entrada_columna.get()
-        self.ejecutar(main.requisito10, self.conn, tabla, columna)
+        self.ejecutar(requerimientos.requisito10, self.conn, tabla, columna)
 
 def main_grafica():
     try:
