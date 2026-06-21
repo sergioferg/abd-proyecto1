@@ -1,5 +1,5 @@
 import pyodbc
-import main
+import requerimientos
 
 # ===== CONFIGURACIÓN DE CONEXIÓN =====
 SERVER   = "localhost"

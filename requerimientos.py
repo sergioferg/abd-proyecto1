@@ -10,33 +10,6 @@ def safe_execute(cursor: pyodbc.Cursor, query: str, descripcion: str = "consulta
         print(f"Error al ejecutar la {descripcion}: {e}")
         return None
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="StreamUCV D/D")
-    parser.add_argument("server", type=str, help="Servidor o instancia de SQL Server")
-    parser.add_argument("database", type=str, help="Base de Datos")
-    parser.add_argument("user", type=str, help="Usuario")
-    parser.add_argument("password", type=str, help="Contraseña")
-    parser.add_argument("driver", type=str, help="Driver de conexion")
-    args = parser.parse_args()
-
-    connection = []
-    
-    #SQL_CONNECTION_STRING="Driver={<driver>};Server=<server_name>;Database=<database_name>;UId=<username>;Pwd=<password>"
-
-    connection = [
-        f"Driver={{{args.driver}}}",
-        f"Server={args.server}",
-        f"Database={args.database}",
-        f"UId={args.user}",
-        f"Pwd={args.password}",
-    ]
-
-    if "18" in args.driver:
-        connection.append("Encrypt=yes")
-        connection.append("TrustServerCertificate=yes")
-    
-    connection_string = ";".join(connection) + ";"
-
 # 1. Listar el nombre de las tablas e índices existentes en el esquema
 # streaming.
 
@@ -554,10 +527,3 @@ def print_header(numero: int, titulo: str) -> None:
     print("\n" + "=" * 80)
     print(f"Requisito {numero}: {titulo}")
     print("=" * 80)
-
-
-def format(row: str) -> str:
-    return row.lstrip("(").lstrip("'").rstrip(")").rstrip(",").rstrip("'")
-
-if __name__ == "__main__":
-    main()

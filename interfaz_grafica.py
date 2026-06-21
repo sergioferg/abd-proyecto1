@@ -3,7 +3,7 @@ import contextlib
 import pyodbc
 import tkinter as tk
 from tkinter import scrolledtext
-import main
+import requerimientos
 
 # ===== CONFIGURACIÓN DE CONEXIÓN =====
 SERVER   = "localhost"
