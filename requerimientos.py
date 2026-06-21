@@ -310,48 +310,35 @@ def requisito6(conn: pyodbc.Connection) -> None:
             print(f" - {row.tabla:<30} | Páginas: {row.total_paginas:>8} | Tamaño: {row.tamano_kb:>10} KB")
 
     cursor.close()
+
 # 7. Calcular o estimar el tamaño de cada registro en bytes.
 
 def requisito7(conn: pyodbc.Connection) -> None:
     cursor = conn.cursor()
-    print_header(7, "Estimación del tamaño de cada registro por columna")
+    print_header(7, "Estimación del tamaño total de cada registro por tabla")
 
     query = """
         SELECT 
             t.name AS tabla, 
-            c.name AS columna, 
-            c.max_length AS tam
+            SUM(c.max_length) AS tamano_registro_bytes
         FROM sys.tables t
-        JOIN sys.schemas s 
-            ON t.schema_id = s.schema_id
-        JOIN sys.columns c 
-            ON t.object_id = c.object_id
+        JOIN sys.schemas s ON t.schema_id = s.schema_id
+        JOIN sys.columns c ON t.object_id = c.object_id
         WHERE s.name = 'streaming'
-        ORDER BY t.name;
+        GROUP BY t.name
+        ORDER BY tamano_registro_bytes DESC;
     """
 
-    rows = safe_execute(cursor, query, "listar tamaño por columna")
+    rows = safe_execute(cursor, query, "calcular tamaño de registro por tabla")
     if rows is None:
         cursor.close()
         return
 
     if not rows:
-        print(" - No se encontraron columnas en el esquema 'streaming'.")
+        print(" - No se encontraron tablas en el esquema 'streaming'.")
     else:
-        col_w = 30
-        bytes_w = 6
-        current_table = None
-
         for row in rows:
-            tabla = row.tabla
-            columna = row.columna
-            tam = row.tam
-
-            if tabla != current_table:
-                print(f"\n{tabla}:\n")
-                current_table = tabla
-
-            print(f"{columna:<{col_w}} | {tam:>{bytes_w}} bytes")
+            print(f" - Tabla: {row.tabla:<25} | Tamaño del registro: {row.tamano_registro_bytes:>6} bytes")
 
     cursor.close()
 
